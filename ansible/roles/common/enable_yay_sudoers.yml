@@ -1,0 +1,20 @@
+pre_tasks:
+  - name: Check if 'yay' is installed
+    ansible.builtin.command: which yay
+    register: yay_check
+    ignore_errors: true
+
+  tasks:
+    - name: Create temporary sudoers drop-in for yay
+      # Creates a temporary sudoers file that allows the 'ntsu' user to run `/usr/bin/pacman`
+      # without a password.
+      become: true
+      ansible.builtin.copy:
+        content: "{{ target_user }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+        dest: "/etc/sudoers.d/yay"
+        owner: root
+        group: root
+        mode: '0440'
+        validate: 'visudo -cf %s' # Validate syntax
+      tags:
+        - sudoers

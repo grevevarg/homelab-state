@@ -1,0 +1,194 @@
+pre_tasks:
+  - name: Check if 'yay' is installed
+    ansible.builtin.command: which yay
+    register: yay_check
+    ignore_errors: true
+
+  - name: Check if 'uv' is installed
+    ansible.builtin.command: which uv
+    register: uv_check
+    ignore_errors: true
+
+  - name: Check if 'flatpak' is installed
+    ansible.builtin.command: which flatpak
+    register: flatpak_check
+    ignore_errors: true
+
+    - name: Read all package list files from host-specific directory
+      ansible.builtin.slurp:
+        src: "{{ temp_clone_path }}/{{ host_vars[inventory_hostname] }}/{{ item }}"
+      loop:
+        - apklist.txt
+        - aptlist.txt
+        - aurlist.txt
+        - flatpaklist.txt
+        - paclist.txt
+        - uvlist.txt
+      register: package_lists
+      tags:
+        - packages
+
+    - name: Assign decoded package list variables
+      ansible.builtin.set_fact:
+        apk_packages: "{{ (package_lists.results | selectattr('item','equalto','apklist.txt') | first).content | b64decode | splitlines() }}"
+        apt_packages: "{{ (package_lists.results | selectattr('item','equalto','aptlist.txt') | first).content | b64decode | splitlines() }}"
+        aur_packages: "{{ (package_lists.results | selectattr('item','equalto','aurlist.txt') | first).content | b64decode | splitlines() }}"
+        flatpak_packages: "{{ (package_lists.results | selectattr('item','equalto','flatpaklist.txt') | first).content | b64decode | splitlines() }}"
+        pacman_packages: "{{ (package_lists.results | selectattr('item','equalto','paclist.txt') | first).content | b64decode | splitlines() }}"
+        uv_packages: "{{ (package_lists.results | selectattr('item','equalto','uvlist.txt') | first).content | b64decode | splitlines() }}"
+
+    - name: Install pacman packages
+      ansible.builtin.pacman:
+        name: "{{ pacman_packages }}"
+        state: present
+      when:
+        - ansible_facts['os_family'] == "Archlinux"
+        - pacman_packages | length > 0
+      tags:
+        - packages
+
+    - name: Install AUR packages
+      ansible.builtin.command: "yay -S --noconfirm {{ item }}"
+      loop: "{{ aur_packages }}"
+      when:
+        - ansible_facts['os_family'] == "Archlinux"
+        - aur_packages | length > 0
+      become: true
+      become_user: "{{ target_user }}"
+      tags:
+        - packages
+
+    - name: Install apt packages
+      ansible.builtin.apt:
+        name: "{{ apt_packages }}"
+        state: present
+        update_cache: yes
+      when:
+        - ansible_facts['os_family'] == "Debian"
+        - apt_packages | length > 0
+
+    - name: Install apt packages
+      ansible.builtin.apk:
+        name: "{{ apk_packages }}"
+        state: present
+      when:
+        - ansible_facts['os_family'] == "Alpinelinux"
+        - apk_packages | length > 0
+
+    - name: Install flatpaks
+      ansible.builtin.command: "flatpak install {{ item }}"
+      loop: {{ flatpak_packages }}
+      when:
+        - flatpak_check == true
+        - flatpak_packages | length > 0
+
+    - name: Install uv tools
+      ansible.builtin.command: "uv tool install {{ item }}"
+      loop: {{ uv_packages }}
+      when:
+        - uv_check == true
+        - uv_packages | length > 0
+---
+pre_tasks:
+  - name: Check if 'yay' is installed
+    ansible.builtin.command: which yay
+    register: yay_check
+    ignore_errors: true
+
+  - name: Check if 'uv' is installed
+    ansible.builtin.command: which uv
+    register: uv_check
+    ignore_errors: true
+
+  - name: Check if 'flatpak' is installed
+    ansible.builtin.command: which flatpak
+    register: flatpak_check
+    ignore_errors: true
+
+tasks:
+  - name: Read all package list files from host-specific directory
+    ansible.builtin.slurp:
+      src: "{{ temp_clone_path }}/{{ host_vars[inventory_hostname] }}/{{ item }}"
+    loop:
+      - apklist.txt
+      - aptlist.txt
+      - aurlist.txt
+      - flatpaklist.txt
+      - paclist.txt
+      - uvlist.txt
+    register: package_lists
+    tags:
+      - packages
+
+  - name: Assign decoded package list variables
+    ansible.builtin.set_fact:
+      apk_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'apklist.txt') | first).content | b64decode | splitlines() }}"
+      apt_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'aptlist.txt') | first).content | b64decode | splitlines() }}"
+      aur_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'aurlist.txt') | first).content | b64decode | splitlines() }}"
+      flatpak_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'flatpaklist.txt') | first).content | b64decode | splitlines() }}"
+      pacman_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'paclist.txt') | first).content | b64decode | splitlines() }}"
+      uv_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'uvlist.txt') | first).content | b64decode | splitlines() }}"
+    tags:
+      - packages
+
+  - name: Install pacman packages
+    ansible.builtin.pacman:
+      name: "{{ pacman_packages }}"
+      state: present
+    when:
+      - ansible_facts['os_family'] == "Archlinux"
+      - pacman_packages | length > 0
+    tags:
+      - packages
+
+  - name: Install AUR packages
+    ansible.builtin.command: "yay -S --noconfirm {{ item }}"
+    loop: "{{ aur_packages }}"
+    when:
+      - ansible_facts['os_family'] == "Archlinux"
+      - aur_packages | length > 0
+      - yay_check.rc == 0
+    become: true
+    become_user: "{{ target_user }}"
+    tags:
+      - packages
+
+  - name: Install apt packages
+    ansible.builtin.apt:
+      name: "{{ apt_packages }}"
+      state: present
+      update_cache: yes
+    when:
+      - ansible_facts['os_family'] == "Debian"
+      - apt_packages | length > 0
+    tags:
+      - packages
+
+  - name: Install apk packages
+    ansible.builtin.apk:
+      name: "{{ apk_packages }}"
+      state: present
+    when:
+      - ansible_facts['os_family'] == "Alpine"
+      - apk_packages | length > 0
+    tags:
+      - packages
+
+  - name: Install flatpak packages
+    ansible.builtin.command: "flatpak install -y {{ item }}"
+    loop: "{{ flatpak_packages }}"
+    when:
+      - flatpak_check.rc == 0
+      - flatpak_packages | length > 0
+    tags:
+      - packages
+
+  - name: Install uv tools
+    ansible.builtin.command: "uv tool install {{ item }}"
+    loop: "{{ uv_packages }}"
+    when:
+      - uv_check.rc == 0
+      - uv_packages | length > 0
+    tags:
+      - packages
+

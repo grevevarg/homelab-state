@@ -1,0 +1,14 @@
+pre_tasks:
+  - name: Check if 'yay' is installed
+    ansible.builtin.command: which yay
+    register: yay_check
+    ignore_errors: true
+
+    - name: Delete temporary sudoers drop-in for yay
+      become: true 
+      ansible.builtin.file:
+        path: "/etc/sudoers.d/yay"
+        state: absent
+      tags:
+        - sudoers
+        - cleanup

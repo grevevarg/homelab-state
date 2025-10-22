@@ -1,0 +1,42 @@
+  pre_tasks:
+    - name: Ensure git and base-devel are installed (prerequisites for yay build)
+      become: true
+      ansible.builtin.pacman:
+        name:
+          - git
+          - base-devel
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Archlinux"
+      tags:
+        - setup
+
+      - name: Bootstrap and install 'yay' if it is missing
+    # Failsafe
+    when: yay_check.rc != 0
+    ansible.builtin.include_tasks:
+      file: bootstrap_yay.yml
+
+  tasks:
+    - name: Check if yay is already installed
+      ansible.builtin.command: which yay
+      register: yay_check
+      ignore_errors: true
+      changed_when: false
+      tags:
+        - yay_install
+
+    - name: Install yay (if not already installed)
+      ansible.builtin.shell: |
+        set -e
+        cd /tmp
+        git clone https://aur.archlinux.org/yay.git
+        chown -R {{ target_user }}:{{ target_user }} yay
+        sudo -u {{ target_user }} bash -c "cd yay && makepkg -si --noconfirm"
+      args:
+        creates: /usr/bin/yay
+      when: yay_check.rc != 0
+      environment:
+        PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      tags:
+        - yay_install

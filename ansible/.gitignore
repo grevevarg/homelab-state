@@ -1,0 +1,81 @@
+# === Core Ansible files ===
+*.retry
+*.log
+*.tmp
+*.bak
+
+# Ignore Ansible vault passwords (never commit them!)
+.vault_pass.txt
+vault_pass.txt
+vault_password_file
+
+# Ignore temporary cloned repos and build artifacts
+temp_clone_path/
+tmp/
+.cache/
+.backups/
+*.swp
+*.swo
+
+# Ignore SSH keys or private credentials
+*.pem
+*.key
+*.pub
+*.crt
+*.csr
+id_rsa*
+id_ecdsa*
+id_ed25519*
+*.asc
+secrets.yml
+secret_vars.yml
+group_vars/*/vault.yml
+host_vars/*/vault.yml
+
+# Ignore inventory caches and dynamic inventory outputs
+inventory.yaml~
+inventory/*.cache
+inventory/*.json
+*.inventory
+*.inventory.yaml
+*.ini
+
+# Ignore Python virtual environments or local tooling
+venv/
+.env/
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore role-specific caches or downloads
+roles/*/.tox/
+roles/*/.molecule/
+roles/*/.pytest_cache/
+roles/*/.cache/
+roles/*/files/tmp/
+roles/*/files/downloads/
+roles/*/files/.*
+roles/*/vars/private.yml
+
+# Ignore generated facts or local host data
+fact_cache/
+facts/
+*.facts
+*.fact
+
+# Ignore editor/IDE junk
+.DS_Store
+.idea/
+.vscode/
+*.code-workspace
+*~
+
+# Ignore Terraform state or cross-tool artifacts (since you have /terraform)
+../terraform/.terraform/
+../terraform/*.tfstate*
+../terraform/*.backup
+
+# Ignore local testing inventory
+inventory.local.yaml
+hosts.local
+
