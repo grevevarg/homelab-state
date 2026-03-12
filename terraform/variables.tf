@@ -40,6 +40,12 @@ variable "pixivfe_proxy_url" {
   default     = ""
 }
 
+variable "pixivfe_tokens" {
+  description = "PHPSESSID cookies for Pixiv API as string or comma separated strings"
+  type        = string
+  sensitive   = true
+}
+
 variable "container_restart_policy" {
   description = "Restart policy for containers"
   type        = string

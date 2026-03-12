@@ -134,7 +134,7 @@ resource "docker_container" "shoko_anime" {
 # PixivFE
 resource "docker_container" "pixivfe" {
   name  = "pixivfe"
-  image = "vnpower/pixivfe:latest"
+  image = "registry.gitlab.com/pixivfe/pixivfe:latest"
   
   networks_advanced {
     name = docker_network.nas_network.name
@@ -146,7 +146,9 @@ resource "docker_container" "pixivfe" {
   }
   
   env = [
-    "PIXIVFE_PROXY_URL=${var.pixivfe_proxy_url}"
+    "HTTP_PROXY=${var.pixivfe_proxy_url}"
+    "PIXIVFE_HOST=0.0.0.0"
+    "PIXIVFE_TOKEN=${var.pixivfe_tokens}"
   ]
   
   restart = var.container_restart_policy
