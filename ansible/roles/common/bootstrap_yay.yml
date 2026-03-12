@@ -1,5 +1,5 @@
   pre_tasks:
-    - name: Ensure git and base-devel are installed (prerequisites for yay build)
+    - name: Ensure git and base-devel are installed
       become: true
       ansible.builtin.pacman:
         name:
