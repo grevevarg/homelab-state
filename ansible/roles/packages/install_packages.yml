@@ -41,11 +41,11 @@ tasks:
       - packages
 
   - name: Install pacman packages
-    ansible.builtin.pacman:
+    community.general.pacman:
       name: "{{ pacman_packages }}"
       state: present
     when:
-      - ansible_facts['os_family'] == "Archlinux"
+      - inventory_hostname in ['hinata', 'maika']
       - pacman_packages | length > 0
     tags:
       - packages
@@ -54,7 +54,7 @@ tasks:
     ansible.builtin.command: "yay -S --noconfirm {{ item }}"
     loop: "{{ aur_packages }}"
     when:
-      - ansible_facts['os_family'] == "Archlinux"
+      - inventory_hostname in ['hinata', 'maika']
       - aur_packages | length > 0
       - yay_check.rc == 0
     become: true
@@ -68,7 +68,7 @@ tasks:
       state: present
       update_cache: yes
     when:
-      - ansible_facts['os_family'] == "Debian"
+      - inventory_hostname in ['macrossnas']
       - apt_packages | length > 0
     tags:
       - packages
@@ -78,7 +78,7 @@ tasks:
       name: "{{ apk_packages }}"
       state: present
     when:
-      - ansible_facts['os_family'] == "Alpine"
+      - inventory_hostname in ['mafuyu']
       - apk_packages | length > 0
     tags:
       - packages

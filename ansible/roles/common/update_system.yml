@@ -1,0 +1,24 @@
+tasks:
+  - name: Update pacman packages
+    community.general.pacman:
+      update_cache: true
+      upgrade: true
+    when: inventory_hostname in ['maika']
+    tags:
+      - update
+
+  - name: Update yay packages
+    ansible.builtin.command: "yay -Syu --noconfirm"
+    when: 
+      - yay_check.rc == 0
+      - inventory_hostname in ['maika']
+    tags:
+      - update
+
+  - name: Update apt packages
+    ansible.builtin.apt:
+      update_cache: true
+      upgrade: true
+    when: inventory_hostname in ['macrossnas']
+    tags:
+      - update

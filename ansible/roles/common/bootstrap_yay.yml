@@ -1,21 +1,21 @@
   pre_tasks:
     - name: Ensure git and base-devel are installed
       become: true
-      ansible.builtin.pacman:
+      community.general.pacman:
         name:
           - git
           - base-devel
         state: present
         update_cache: true
-      when: ansible_os_family == "Archlinux"
+      when: inventory_hostname in ['hinata', 'maika']
       tags:
         - setup
 
-      - name: Bootstrap and install 'yay' if it is missing
+    - name: Bootstrap and install yay
     # Failsafe
-    when: yay_check.rc != 0
-    ansible.builtin.include_tasks:
-      file: bootstrap_yay.yml
+      when: yay_check.rc != 0
+      ansible.builtin.include_tasks:
+        file: bootstrap_yay.yml
 
   tasks:
     - name: Check if yay is already installed
