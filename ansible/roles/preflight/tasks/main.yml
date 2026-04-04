@@ -1,0 +1,62 @@
+---
+- name: Install pacman preflight packages
+  community.general.pacman:
+    name:
+      - arch-install-scripts
+      - dkms
+      - base-devel
+      - git
+      - steam
+      - pacman-contrib
+      - retroarch
+      - starship
+      - rofi
+      - thunar
+      - ncdu
+      - plocate
+      - ark
+      - antimicrox
+      - ghostty
+      - zsh
+      - hyprpaper
+      - imagemagick
+      - kernel-modules-hook
+      - lsd
+      - mpv
+      - nano
+      - nvidia-utils
+      - python3
+      - nvtop
+      - btop
+      - thunar-archive-plugin
+      - nerd-fonts
+      - uv
+      - wev
+      - wl-clipboard
+      - firefox
+      - docker
+      - docker-compose
+      - fastfetch
+      - flatpak
+      - cifs-utils
+  state: present
+
+# path here kinda feels wrong?
+- name: Install yay
+  include_tasks: ../yay/tasks/install.yml
+
+- name: Install yay packages
+  ansible.builtin.command: "yay -S --noconfirm {{ item }}"
+  loop:
+    - atlauncher-bin
+    - brave-bin
+    - chromium-widevine
+    - heroic-games-launcher-bin
+    - protonhax
+    - protonplus
+    - proton-ge-custom-bin
+    - xpadneo-dkms
+    - yay
+    - bzmenu
+    - iwmenu
+  changed_when: false

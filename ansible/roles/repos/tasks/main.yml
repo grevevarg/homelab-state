@@ -1,0 +1,14 @@
+---
+- name: Clone packages repository
+  ansible.builtin.git:
+    repo: https://github.com/natsukashiixo/packages
+    dest: "{{ packages_clone_path }}"
+    version: main
+    update: true
+
+- name: Clone dotfiles repository
+  ansible.builtin.git:
+    repo: https://github.com/natsukashiixo/dotfiles_pub
+    dest: "{{ dotfiles_clone_path }}"
+    version: main
+    update: true

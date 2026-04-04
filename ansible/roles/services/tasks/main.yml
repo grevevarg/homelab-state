@@ -1,0 +1,21 @@
+---
+- name: Create systemd-networkd-wait-online drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/systemd-networkd-wait-online.service.d
+    state: directory
+    mode: '0755'
+
+- name: Create override.conf drop-in file
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --any
+    dest: /etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf
+    mode: '0644'
+  notify: reload systemd
+
+- name: Copy dotfiles
+  ansible.builtin.copy:
+    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/"
+    dest: /home/{{ target_user }}/

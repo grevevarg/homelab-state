@@ -22,3 +22,15 @@ tasks:
     when: inventory_hostname in ['macrossnas']
     tags:
       - update
+
+  - name: Update flatpak packages
+    ansible.builtin.command: flatpak update
+    when: 
+      - flatpak_check.rc == 0
+      - inventory_hostname in ['maika']
+    tags:
+      - update
+
+  - name: Reboot if required
+    reboot:
+      when: ansible_reboot_required

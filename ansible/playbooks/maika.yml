@@ -1,0 +1,5 @@
+---
+- name: Maika
+  hosts: maika
+  become: true
+  become_user: root

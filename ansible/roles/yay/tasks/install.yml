@@ -1,0 +1,27 @@
+---
+- name: Check if 'yay' is installed
+  ansible.builtin.command: which yay
+  register: yay_check
+  ignore_errors: true
+
+- name: Create temporary sudoers drop-in for yay
+  ansible.builtin.copy:
+    content: "{{ target_user }} ALL=(ALL) NOPASSWD: /usr/bin/pacman"
+    dest: "/etc/sudoers.d/yay"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Install yay (if not already installed)
+  ansible.builtin.shell: |
+    set -e
+    cd /tmp
+    git clone https://aur.archlinux.org/yay.git
+    chown -R {{ target_user }}:{{ target_user }} yay
+    sudo -u {{ target_user }} bash -c "cd yay && makepkg -si --noconfirm"
+  args:
+    creates: /usr/bin/yay
+  when: yay_check.rc != 0
+  environment:
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
