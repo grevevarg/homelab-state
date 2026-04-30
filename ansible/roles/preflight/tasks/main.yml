@@ -39,6 +39,15 @@
       - fastfetch
       - flatpak
       - cifs-utils
+      - xorg-xrandr
+      - libinput
+      - libinput-tools
+      - dunst
+      - swayosd
+      - socat
+      - mangohud
+      - lib32-mangohud
+      - goverlay
   state: present
 
 # path here kinda feels wrong?
@@ -59,4 +68,14 @@
     - yay
     - bzmenu
     - iwmenu
+    - sunshine-git
   changed_when: false
+
+- name: install webapps
+  ansible.builtin.command: "/home/{{ target_user }}/scripts/create_webapp_automated.py {{ item }}"
+  loop:
+    - "--app-name=Youtube --app-url=https://www.youtube.com/tv"
+    - "--app-name=YoutubeMusic --app-url=https://music.youtube.com"
+    - "--app-name=Twitch --app-url=https://www.twitch.tv"
+  become: true
+  become_user: "{{ target_user }}"
