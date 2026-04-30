@@ -1,0 +1,53 @@
+---
+- name: Create persistent package storage directory
+  ansible.builtin.file:
+    path: /var/cache/pacman/built-packages
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure makepkg parallel jobs
+  ansible.builtin.lineinfile:
+    path: /etc/makepkg.conf
+    regexp: '^#?MAKEFLAGS='
+    line: 'MAKEFLAGS="-j{{ (ansible_processor_vcpus - 1) if ansible_processor_vcpus > 1 else 1 }}"'
+    backup: yes
+  become: true
+  when:
+    - inventory_hostname in ['hinata', 'maika']
+
+- name: Configure makepkg build and package directories
+  ansible.builtin.lineinfile:
+    path: /etc/makepkg.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backup: yes
+  become: true
+  loop:
+    - { regexp: '^#?BUILDDIR=', line: 'BUILDDIR=/tmp/makepkg' }
+    - { regexp: '^#?PKGDEST=', line: 'PKGDEST=/var/cache/pacman/built-packages' }
+  when:
+    - inventory_hostname in ['hinata', 'maika']
+
+- name: Configure and mount tmpfs for builds
+  block:
+    - name: Mount tmpfs for builds
+      ansible.posix.mount:
+        path: /tmp/makepkg
+        src: tmpfs
+        fstype: tmpfs
+        opts: "size={{ [[(ansible_memtotal_mb / 1024 / 2) | int, 2] | max, 16] | min }}G,uid=root,gid=root,mode=0755"
+        state: mounted
+      become: true
+
+    - name: Add tmpfs to fstab
+      ansible.posix.mount:
+        path: /tmp/makepkg
+        src: tmpfs
+        fstype: tmpfs
+        opts: "size={{ [[(ansible_memtotal_mb / 1024 / 2) | int, 2] | max, 16] | min }}G,uid=root,gid=root,mode=0755"
+        state: present
+      become: true
+  when:
+    - inventory_hostname in ['hinata']
