@@ -17,6 +17,18 @@
   ignore_errors: true
   changed_when: false
 
+- name: Add LizardByte beta repository to pacman.conf
+  ansible.builtin.blockinfile:
+    path: /etc/pacman.conf
+    block: |
+      [lizardbyte-beta]
+      SigLevel = Optional
+      Server = https://github.com/LizardByte/pacman-repo/releases/download/beta
+    marker: "# {mark} LizardByte Beta Repository"
+  become: true
+  when:
+    - inventory_hostname in ['hinata', 'maika'] 
+
 - name: Read all package list files from host-specific directory
   ansible.builtin.slurp:
     src: "{{ packages_clone_path }}/{{ inventory_hostname }}/{{ item }}"
@@ -86,7 +98,7 @@
     - packages
 
 - name: Install flatpak packages
-  ansible.builtin.command: "flatpak install -y {{ item }}"
+  ansible.builtin.command: "flatpak install flathub -y {{ item }}"
   loop: "{{ flatpak_packages }}"
   when:
     - flatpak_check.rc == 0
