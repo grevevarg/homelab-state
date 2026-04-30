@@ -1,0 +1,22 @@
+- name: Create .smbcred file from vault credentials
+  ansible.builtin.copy:
+    content: |
+      username={{ smbcred_username }}
+      password={{ smbcred_password }}
+    dest: "{{ target_user_home }}/.smbcred"
+    mode: '0600'
+  become: true
+  become_user: "{{ target_user }}"
+
+- name: Create /mnt/ntsuNAS directory
+  ansible.builtin.file:
+    path: /mnt/ntsuNAS
+    state: directory
+
+- name: Add SMB share to fstab
+  ansible.posix.mount:
+    path: /mnt/ntsuNAS
+    src: //192.168.0.199/share
+    fstype: cifs
+    opts: x-systemd.automount,rw,credentials=/home/{{ target_user }}/.smbcred,uid=1000,gid=1000,iocharset=utf8,nounix,noserverino,vers=3.0
+    state: present
