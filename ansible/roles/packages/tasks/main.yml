@@ -115,25 +115,47 @@
   tags:
     - packages
 
+- name: install oh my zsh
+  ansible.builtin.command: "sh -c \"$(curl -fsSL https://install.ohmyz.sh/)\""
+  when: omzsh_check.rc != 0
+  tags:
+    - packages
+  register: omzsh_check
+
 - name: Clear pacman cache
   community.general.pacman:
     autoclean: true
   when: inventory_hostname in ['hinata', 'maika']
+  tags:
+    - packages
+    - cleanup
 
 - name: Clear apt cache
   ansible.builtin.apt:
     autoclean: true
   when: inventory_hostname in ['macrossnas']
+  tags:
+    - packages
+    - cleanup
 
 - name: Clear apk cache
   community.general.apk:
     autoclean: true
   when: inventory_hostname in ['mafuyu']
+  tags:
+    - packages
+    - cleanup
 
 - name: Clear uv cache
   ansible.builtin.command: "uv cache clean"
   when: uv_check.rc == 0
+  tags:
+    - packages
+    - cleanup
 
 - name: Clear flatpak cache
   ansible.builtin.command: "flatpak update --assumant-remove"
   when: flatpak_check.rc == 0
+  tags:
+    - packages
+    - cleanup

@@ -15,7 +15,6 @@
       - ncdu
       - plocate
       - ark
-      - antimicrox
       - ghostty
       - zsh
       - hyprpaper
@@ -68,14 +67,29 @@
     - yay
     - bzmenu
     - iwmenu
+    - antimicrox-git
+    - helium-browser
     - sunshine-git
   changed_when: false
 
 - name: install webapps
-  ansible.builtin.command: "/home/{{ target_user }}/scripts/create_webapp_automated.py {{ item }}"
+  ansible.builtin.command: "{{ dotfiles_clone_path }}/{{ target_user }}/scripts/create_webapp_automated.py {{ item }}"
   loop:
     - "--app-name=Youtube --app-url=https://www.youtube.com/tv"
     - "--app-name=YoutubeMusic --app-url=https://music.youtube.com"
     - "--app-name=Twitch --app-url=https://www.twitch.tv"
   become: true
   become_user: "{{ target_user }}"
+
+- name: Copy scripts to /usr/local/bin
+  ansible.builtin.copy:
+    src: "{{ dotfiles_clone_path }}/{{ target_user }}/scripts/{{ item }}"
+    dest: /usr/local/bin/{{ item }}
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - antimicrox-hyprdaemon
+    - install-webapp
+    - toggle_waybar
+  become: true

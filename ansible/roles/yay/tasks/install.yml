@@ -13,7 +13,7 @@
     mode: '0440'
     validate: 'visudo -cf %s'
 
-- name: Install yay (if not already installed)
+- name: Install yay
   ansible.builtin.shell: |
     set -e
     cd /tmp
@@ -23,5 +23,6 @@
   args:
     creates: /usr/bin/yay
   when: yay_check.rc != 0
+  register: yay_check
   environment:
     PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

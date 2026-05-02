@@ -1,0 +1,2 @@
+dotfiles_clone_path: /tmp/ansible-dotfiles
+packages_clone_path: /tmp/ansible-packages

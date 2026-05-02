@@ -1,4 +1,14 @@
+# services/handlers/main.yml
 ---
-- name: reload systemd
+- name: reload systemd user
   ansible.builtin.systemd_service:
     daemon_reload: true
+
+- name: enable and start antimicrox-hyprdaemon
+  ansible.builtin.systemd_service:
+    name: antimicrox-hyprdaemon.service
+    state: started
+    enabled: true
+    scope: user
+  become: true
+  become_user: "{{ target_user }}"

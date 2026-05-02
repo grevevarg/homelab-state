@@ -1,0 +1,39 @@
+---
+
+- name: Copy dotfiles
+  ansible.builtin.copy:
+    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/"
+    dest: /home/{{ target_user }}/
+
+- name: Set zsh as default shell for user
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    shell: /usr/bin/zsh
+  become: true
+
+- name: Create screenshot directory
+  ansible.builtin.file:
+    path: "/home/{{ target_user }}/Pictures/screenshots"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  become: true
+
+- name: Create wallpapers directory
+  ansible.builtin.file:
+    path: "/home/{{ target_user }}/Pictures/wallpapers"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+  become: true
+
+- name: Download default wallpaper
+  ansible.builtin.get_url:
+    url: https://safebooru.org//images/3396/27fa8d7d4f6fdafb4afafcbeceb5e59361d924e9.jpg
+    dest: "/home/{{ target_user }}/Pictures/wallpapers/default.png"
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0644'
+  become: true

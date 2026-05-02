@@ -4,6 +4,7 @@
     path: /etc/systemd/system/systemd-networkd-wait-online.service.d
     state: directory
     mode: '0755'
+    become: true
 
 - name: Create override.conf drop-in file
   ansible.builtin.copy:
@@ -13,9 +14,26 @@
       ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --any
     dest: /etc/systemd/system/systemd-networkd-wait-online.service.d/override.conf
     mode: '0644'
+  become: true
   notify: reload systemd
 
-- name: Copy dotfiles
-  ansible.builtin.copy:
-    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/"
-    dest: /home/{{ target_user }}/
+
+- name: Create Antimicrox-hyprdaemon Service
+  ansible.builtin.copy: 
+    content: |
+      [Unit]
+      Description=Antimicrox Hyprland Daemon
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/antimicrox-hyprdaemon
+      Restart=on-failure
+      RestartSec=5
+    dest: /etc/systemd/user/antimicrox-hyprdaemon.service
+    mode: '0644'
+    when: inventory_hostname in ['maika']
+    become: true
+    notify: 
+      - reload systemd
+      - enable and start antimicrox-hyprdaemon
+

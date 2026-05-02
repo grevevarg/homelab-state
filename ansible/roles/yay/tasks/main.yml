@@ -29,6 +29,7 @@
   args:
     creates: /usr/bin/yay
   when: yay_check.rc != 0
+  register: yay_check
   environment:
     PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   tags:
