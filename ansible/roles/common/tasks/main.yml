@@ -1,5 +1,11 @@
 ---
 
+- name: Create user
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    state: present
+  become: true
+
 - name: Copy dotfiles
   ansible.builtin.copy:
     src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/"

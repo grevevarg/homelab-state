@@ -1,5 +1,33 @@
 ---
-- name: Maika
+- name: First run provision Maika
   hosts: maika
   become: true
-  become_user: root
+
+  pre_tasks:
+    - include_role:
+        name: yay
+    - include_role:
+        name: repos
+    - include_role:
+        name: common
+    - include_role:
+        name: preflight
+
+  roles:
+    - makepkg
+    - packages
+    - samba
+    - sddm
+    - services
+    - cron
+
+  post_tasks:
+    - include_role:
+        name: yay
+      tags: cleanup
+    - include_role:
+        name: repos
+      tags: cleanup
+    - include_role:
+        name: packages
+      tags: cleanup

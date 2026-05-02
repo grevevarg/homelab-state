@@ -1,6 +1,14 @@
 ---
 # tasks file for yay role
 
+- name: Install pacman preflight packages
+  community.general.pacman:
+    name:
+      - git
+      - base-devel
+    state: present
+  become: true
+
 - name: Check if 'yay' is installed
   ansible.builtin.command: which yay
   register: yay_check
@@ -16,8 +24,6 @@
     group: root
     mode: '0440'
     validate: 'visudo -cf %s' # Validate syntax
-  tags:
-    - sudoers
 
 - name: Install yay (if not already installed)
   ansible.builtin.shell: |
@@ -32,14 +38,11 @@
   register: yay_check
   environment:
     PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-  tags:
-    - yay_install
 
 - name: Delete temporary sudoers drop-in for yay
   ansible.builtin.file:
     path: "/etc/sudoers.d/yay"
     state: absent
   tags:
-    - sudoers
     - cleanup
 

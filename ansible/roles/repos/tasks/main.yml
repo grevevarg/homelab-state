@@ -23,3 +23,17 @@
     dest: "{{ dotfiles_clone_path }}"
     version: main
     update: true
+
+- name: create temp directories
+  ansible.builtin.file:
+    path: {{ dotfiles_clone_path }}
+    state: absent
+    tags:
+      - cleanup
+
+- name: create temp directories
+  ansible.builtin.file:
+    path: {{ packages_clone_path }}
+    state: absent
+    tags:
+      - cleanup

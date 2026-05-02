@@ -17,6 +17,12 @@
   ignore_errors: true
   changed_when: false
 
+- name: Check if omz is installed
+  ansible.builtin.command: command -v omz
+  register: omzsh_check
+  ignore_errors: true
+  changed_when: false
+
 - name: Add LizardByte beta repository to pacman.conf
   ansible.builtin.blockinfile:
     path: /etc/pacman.conf
@@ -40,8 +46,7 @@
     - paclist.txt
     - uvlist.txt
   register: package_lists
-  tags:
-    - packages
+
 
 - name: Assign decoded package list variables
   ansible.builtin.set_fact:
@@ -51,8 +56,7 @@
     flatpak_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'flatpaklist.txt') | first).content | b64decode | splitlines() }}"
     pacman_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'paclist.txt') | first).content | b64decode | splitlines() }}"
     uv_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'uvlist.txt') | first).content | b64decode | splitlines() }}"
-  tags:
-    - packages
+
 
 - name: Install pacman packages
   community.general.pacman:
@@ -61,8 +65,7 @@
   when:
     - inventory_hostname in ['hinata', 'maika']
     - pacman_packages | length > 0
-  tags:
-    - packages
+
 
 - name: Install AUR packages
   ansible.builtin.command: "yay -S --noconfirm {{ item }}"
@@ -73,8 +76,7 @@
     - yay_check.rc == 0
   become: true
   become_user: "{{ target_user }}"
-  tags:
-    - packages
+
 
 - name: Install apt packages
   ansible.builtin.apt:
@@ -84,8 +86,7 @@
   when:
     - inventory_hostname in ['macrossnas']
     - apt_packages | length > 0
-  tags:
-    - packages
+
 
 - name: Install apk packages
   ansible.builtin.apk:
@@ -94,8 +95,7 @@
   when:
     - inventory_hostname in ['mafuyu']
     - apk_packages | length > 0
-  tags:
-    - packages
+
 
 - name: Install flatpak packages
   ansible.builtin.command: "flatpak install flathub -y {{ item }}"
@@ -103,8 +103,7 @@
   when:
     - flatpak_check.rc == 0
     - flatpak_packages | length > 0
-  tags:
-    - packages
+
 
 - name: Install uv tools
   ansible.builtin.command: "uv tool install {{ item }}"
@@ -112,14 +111,12 @@
   when:
     - uv_check.rc == 0
     - uv_packages | length > 0
-  tags:
-    - packages
+
 
 - name: install oh my zsh
   ansible.builtin.command: "sh -c \"$(curl -fsSL https://install.ohmyz.sh/)\""
   when: omzsh_check.rc != 0
-  tags:
-    - packages
+
   register: omzsh_check
 
 - name: Clear pacman cache
@@ -127,7 +124,6 @@
     autoclean: true
   when: inventory_hostname in ['hinata', 'maika']
   tags:
-    - packages
     - cleanup
 
 - name: Clear apt cache
@@ -135,7 +131,6 @@
     autoclean: true
   when: inventory_hostname in ['macrossnas']
   tags:
-    - packages
     - cleanup
 
 - name: Clear apk cache
@@ -143,19 +138,16 @@
     autoclean: true
   when: inventory_hostname in ['mafuyu']
   tags:
-    - packages
     - cleanup
 
 - name: Clear uv cache
   ansible.builtin.command: "uv cache clean"
   when: uv_check.rc == 0
   tags:
-    - packages
     - cleanup
 
 - name: Clear flatpak cache
   ansible.builtin.command: "flatpak update --assumant-remove"
   when: flatpak_check.rc == 0
   tags:
-    - packages
     - cleanup

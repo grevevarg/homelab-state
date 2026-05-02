@@ -1,0 +1,20 @@
+- name: Create sddm.conf.d directory
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Configure SDDM autologin
+  ansible.builtin.copy:
+    content: |
+      [General]
+      Session=hyprland
+      User={{ target_user }}
+    dest: /etc/sddm.conf.d/autologin.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
