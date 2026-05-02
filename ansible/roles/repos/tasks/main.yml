@@ -1,4 +1,15 @@
 ---
+
+- name: create temp directories
+  ansible.builtin.file:
+    path: {{ dotfiles_clone_path }}
+    state: directory
+
+- name: create temp directories
+  ansible.builtin.file:
+    path: {{ packages_clone_path }}
+    state: directory
+
 - name: Clone packages repository
   ansible.builtin.git:
     repo: https://github.com/natsukashiixo/packages
