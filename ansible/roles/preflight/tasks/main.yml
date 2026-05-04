@@ -47,6 +47,7 @@
       - goverlay
       - python-requests
       - waybar
+      - cronie
     state: present
 
 - name: Install yay packages
