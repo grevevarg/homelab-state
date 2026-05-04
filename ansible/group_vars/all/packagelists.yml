@@ -1,0 +1,20 @@
+# In group_vars/all.yml or inventory
+package_list_files:
+  hinata:
+    - aurlist.txt
+    - flatpaklist.txt
+    - paclist.txt
+    - uvlist.txt
+  maika:
+    - aurlist.txt
+    - flatpaklist.txt
+    - paclist.txt
+    - uvlist.txt
+  macrossnas:
+    - aptlist.txt
+    - flatpaklist.txt
+    - uvlist.txt
+  mafuyu:
+    - apklist.txt
+    - flatpaklist.txt
+    - uvlist.txt

@@ -1,6 +1,6 @@
 # services/handlers/main.yml
 ---
-- name: reload systemd user
+- name: reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
 

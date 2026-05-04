@@ -1,14 +1,16 @@
 ---
 
-- name: create temp directories
+- name: Create temp dotfiles dir
   ansible.builtin.file:
-    path: {{ dotfiles_clone_path }}
+    path: "{{ dotfiles_clone_path }}"
     state: directory
+    mode: '0777'
 
-- name: create temp directories
+- name: Create temp packages dir
   ansible.builtin.file:
-    path: {{ packages_clone_path }}
+    path: "{{ packages_clone_path }}"
     state: directory
+    mode: '0777'
 
 - name: Clone packages repository
   ansible.builtin.git:
@@ -23,17 +25,3 @@
     dest: "{{ dotfiles_clone_path }}"
     version: main
     update: true
-
-- name: create temp directories
-  ansible.builtin.file:
-    path: {{ dotfiles_clone_path }}
-    state: absent
-    tags:
-      - cleanup
-
-- name: create temp directories
-  ansible.builtin.file:
-    path: {{ packages_clone_path }}
-    state: absent
-    tags:
-      - cleanup

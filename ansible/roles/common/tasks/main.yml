@@ -6,10 +6,29 @@
     state: present
   become: true
 
-- name: Copy dotfiles
-  ansible.builtin.copy:
-    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/"
-    dest: /home/{{ target_user }}/
+- name: Create user group
+  ansible.builtin.group:
+    name: "{{ target_user }}"
+    state: present
+  become: true
+
+- name: Add user to wheel group
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    group: wheel
+  become: true
+
+- name: Add user to user group
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    group: "{{ target_user }}"
+  become: true
+
+- name: Copy dotfiles with cp (better debugging)
+  ansible.builtin.shell: |
+    cp -r "{{ dotfiles_clone_path }}/{{ inventory_hostname }}"/* "/home/{{ target_user }}/"
+    chown -R "{{ target_user }}:{{ target_user }}" "/home/{{ target_user }}"
+  become: true
 
 - name: Set zsh as default shell for user
   ansible.builtin.user:

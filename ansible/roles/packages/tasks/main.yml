@@ -33,29 +33,31 @@
     marker: "# {mark} LizardByte Beta Repository"
   become: true
   when:
-    - inventory_hostname in ['hinata', 'maika'] 
+    - inventory_hostname in ['hinata', 'maika']
 
-- name: Read all package list files from host-specific directory
-  ansible.builtin.slurp:
-    src: "{{ packages_clone_path }}/{{ inventory_hostname }}/{{ item }}"
-  loop:
-    - apklist.txt
-    - aptlist.txt
-    - aurlist.txt
-    - flatpaklist.txt
-    - paclist.txt
-    - uvlist.txt
-  register: package_lists
+- name: Read and parse package lists
+  block:
+    - name: Slurp all package files
+      ansible.builtin.slurp:
+        src: "{{ packages_clone_path }}/{{ inventory_hostname }}/{{ item }}"
+      loop: "{{ package_list_files[inventory_hostname] }}"
+      register: slurped_files
+
+    - name: Convert slurped content to package lists
+      ansible.builtin.set_fact:
+        package_data: "{{ package_data | default({}) | combine({item.item | splitext | first: item.content | parse_package_list}) }}"
+      loop: "{{ slurped_files.results }}"
+
+    - name: Set individual package lists
+      ansible.builtin.set_fact:
+        pacman_packages: "{{ package_data.get('paclist', []) }}"
+        aur_packages: "{{ package_data.get('aurlist', []) }}"
+        apt_packages: "{{ package_data.get('aptlist', []) }}"
+        apk_packages: "{{ package_data.get('apklist', []) }}"
+        flatpak_packages: "{{ package_data.get('flatpaklist', []) }}"
+        uv_packages: "{{ package_data.get('uvlist', []) }}"
 
 
-- name: Assign decoded package list variables
-  ansible.builtin.set_fact:
-    apk_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'apklist.txt') | first).content | b64decode | splitlines() }}"
-    apt_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'aptlist.txt') | first).content | b64decode | splitlines() }}"
-    aur_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'aurlist.txt') | first).content | b64decode | splitlines() }}"
-    flatpak_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'flatpaklist.txt') | first).content | b64decode | splitlines() }}"
-    pacman_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'paclist.txt') | first).content | b64decode | splitlines() }}"
-    uv_packages: "{{ (package_lists.results | selectattr('item', 'equalto', 'uvlist.txt') | first).content | b64decode | splitlines() }}"
 
 
 - name: Install pacman packages
@@ -66,9 +68,8 @@
     - inventory_hostname in ['hinata', 'maika']
     - pacman_packages | length > 0
 
-
 - name: Install AUR packages
-  ansible.builtin.command: "yay -S --noconfirm {{ item }}"
+  ansible.builtin.command: "yay -S --noconfirm --needed {{ item }}"
   loop: "{{ aur_packages }}"
   when:
     - inventory_hostname in ['hinata', 'maika']
@@ -82,7 +83,7 @@
   ansible.builtin.apt:
     name: "{{ apt_packages }}"
     state: present
-    update_cache: yes
+    update_cache: true
   when:
     - inventory_hostname in ['macrossnas']
     - apt_packages | length > 0
@@ -112,42 +113,3 @@
     - uv_check.rc == 0
     - uv_packages | length > 0
 
-
-- name: install oh my zsh
-  ansible.builtin.command: "sh -c \"$(curl -fsSL https://install.ohmyz.sh/)\""
-  when: omzsh_check.rc != 0
-
-  register: omzsh_check
-
-- name: Clear pacman cache
-  community.general.pacman:
-    autoclean: true
-  when: inventory_hostname in ['hinata', 'maika']
-  tags:
-    - cleanup
-
-- name: Clear apt cache
-  ansible.builtin.apt:
-    autoclean: true
-  when: inventory_hostname in ['macrossnas']
-  tags:
-    - cleanup
-
-- name: Clear apk cache
-  community.general.apk:
-    autoclean: true
-  when: inventory_hostname in ['mafuyu']
-  tags:
-    - cleanup
-
-- name: Clear uv cache
-  ansible.builtin.command: "uv cache clean"
-  when: uv_check.rc == 0
-  tags:
-    - cleanup
-
-- name: Clear flatpak cache
-  ansible.builtin.command: "flatpak update --assumant-remove"
-  when: flatpak_check.rc == 0
-  tags:
-    - cleanup

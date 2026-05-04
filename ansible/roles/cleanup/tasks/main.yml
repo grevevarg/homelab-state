@@ -1,0 +1,47 @@
+- name: Clear pacman cache
+  community.general.pacman:
+    autoclean: true
+  when: inventory_hostname in ['hinata', 'maika']
+  tags:
+    - cleanup
+
+- name: Clear apt cache
+  ansible.builtin.apt:
+    autoclean: true
+  when: inventory_hostname in ['macrossnas']
+  tags:
+    - cleanup
+
+- name: Clear apk cache
+  community.general.apk:
+    autoclean: true
+  when: inventory_hostname in ['mafuyu']
+  tags:
+    - cleanup
+
+- name: Clear uv cache
+  ansible.builtin.command: "uv cache clean"
+  when: uv_check.rc == 0
+  tags:
+    - cleanup
+
+- name: Delete temporary sudoers drop-in for yay
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/yay"
+    state: absent
+  tags:
+    - cleanup
+
+- name: Remove temp dotfiles dir
+  ansible.builtin.file:
+    path: "{{ dotfiles_clone_path }}"
+    state: absent
+  tags:
+    - cleanup
+
+- name: Remove temp packages dir
+  ansible.builtin.file:
+    path: "{{ packages_clone_path }}"
+    state: absent
+  tags:
+    - cleanup

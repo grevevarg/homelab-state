@@ -13,8 +13,6 @@
   ansible.builtin.command: which yay
   register: yay_check
   ignore_errors: true
-  tags:
-    - yay_install
 
 - name: Create temporary sudoers drop-in for yay
   ansible.builtin.copy:
@@ -24,6 +22,7 @@
     group: root
     mode: '0440'
     validate: 'visudo -cf %s' # Validate syntax
+  become: true
 
 - name: Install yay (if not already installed)
   ansible.builtin.shell: |
@@ -38,11 +37,3 @@
   register: yay_check
   environment:
     PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
-- name: Delete temporary sudoers drop-in for yay
-  ansible.builtin.file:
-    path: "/etc/sudoers.d/yay"
-    state: absent
-  tags:
-    - cleanup
-

@@ -12,7 +12,7 @@
     path: /etc/makepkg.conf
     regexp: '^#?MAKEFLAGS='
     line: 'MAKEFLAGS="-j{{ (ansible_processor_vcpus - 1) if ansible_processor_vcpus > 1 else 1 }}"'
-    backup: yes
+    backup: true
   become: true
   when:
     - inventory_hostname in ['hinata', 'maika']
@@ -22,7 +22,7 @@
     path: /etc/makepkg.conf
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
-    backup: yes
+    backup: true
   become: true
   loop:
     - { regexp: '^#?BUILDDIR=', line: 'BUILDDIR=/tmp/makepkg' }
@@ -31,6 +31,8 @@
     - inventory_hostname in ['hinata', 'maika']
 
 - name: Configure and mount tmpfs for builds
+  when:
+    - inventory_hostname in ['hinata']
   block:
     - name: Mount tmpfs for builds
       ansible.posix.mount:
@@ -49,5 +51,3 @@
         opts: "size={{ [[(ansible_memtotal_mb / 1024 / 2) | int, 2] | max, 16] | min }}G,uid=root,gid=root,mode=0755"
         state: present
       become: true
-  when:
-    - inventory_hostname in ['hinata']

@@ -23,8 +23,6 @@
       - lsd
       - mpv
       - nano
-      - nvidia-utils
-      - python3
       - nvtop
       - btop
       - thunar-archive-plugin
@@ -47,14 +45,12 @@
       - mangohud
       - lib32-mangohud
       - goverlay
-  state: present
-
-# path here kinda feels wrong?
-- name: Install yay
-  include_tasks: ../yay/tasks/install.yml
+      - python-requests
+      - waybar
+    state: present
 
 - name: Install yay packages
-  ansible.builtin.command: "yay -S --noconfirm {{ item }}"
+  ansible.builtin.command: "yay -S --noconfirm --needed {{ item }}"
   loop:
     - atlauncher-bin
     - brave-bin
@@ -68,12 +64,13 @@
     - bzmenu
     - iwmenu
     - antimicrox-git
-    - helium-browser
-    - sunshine-git
+    - helium-browser-bin
   changed_when: false
+  become: true
+  become_user: "{{ target_user }}"
 
-- name: install webapps
-  ansible.builtin.command: "{{ dotfiles_clone_path }}/{{ target_user }}/scripts/create_webapp_automated.py {{ item }}"
+- name: Install webapps
+  ansible.builtin.command: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/scripts/create_webapp_automated.py {{ item }}"
   loop:
     - "--app-name=Youtube --app-url=https://www.youtube.com/tv"
     - "--app-name=YoutubeMusic --app-url=https://music.youtube.com"
@@ -83,7 +80,8 @@
 
 - name: Copy scripts to /usr/local/bin
   ansible.builtin.copy:
-    src: "{{ dotfiles_clone_path }}/{{ target_user }}/scripts/{{ item }}"
+    remote_src: true
+    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/scripts/{{ item }}"
     dest: /usr/local/bin/{{ item }}
     mode: '0755'
     owner: root

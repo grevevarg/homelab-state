@@ -4,7 +4,7 @@
     path: /etc/systemd/system/systemd-networkd-wait-online.service.d
     state: directory
     mode: '0755'
-    become: true
+  become: true
 
 - name: Create override.conf drop-in file
   ansible.builtin.copy:
@@ -19,7 +19,7 @@
 
 
 - name: Create Antimicrox-hyprdaemon Service
-  ansible.builtin.copy: 
+  ansible.builtin.copy:
     content: |
       [Unit]
       Description=Antimicrox Hyprland Daemon
@@ -31,9 +31,8 @@
       RestartSec=5
     dest: /etc/systemd/user/antimicrox-hyprdaemon.service
     mode: '0644'
-    when: inventory_hostname in ['maika']
-    become: true
-    notify: 
-      - reload systemd
-      - enable and start antimicrox-hyprdaemon
-
+  when: inventory_hostname in ['maika']
+  become: true
+  notify:
+    - reload systemd
+    - enable and start antimicrox-hyprdaemon
