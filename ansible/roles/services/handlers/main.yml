@@ -12,3 +12,9 @@
     scope: user
   become: true
   become_user: "{{ target_user }}"
+
+- name: restart gpu-power-limit
+  ansible.builtin.systemd_service:
+    name: gpu-power-limit.service
+    state: restarted
+  become: true

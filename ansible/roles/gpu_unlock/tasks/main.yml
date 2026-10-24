@@ -1,0 +1,16 @@
+---
+- name: Assert gpu_unlock_state is valid
+  ansible.builtin.assert:
+    that: gpu_unlock_state in ['present', 'absent']
+    fail_msg: "gpu_unlock_state must be 'present' or 'absent', got '{{ gpu_unlock_state }}'"
+
+- name: Run preflight checks
+  ansible.builtin.include_tasks: preflight.yml
+
+- name: Install gpu-unlock
+  ansible.builtin.include_tasks: present.yml
+  when: gpu_unlock_state == 'present'
+
+- name: Remove gpu-unlock
+  ansible.builtin.include_tasks: absent.yml
+  when: gpu_unlock_state == 'absent'

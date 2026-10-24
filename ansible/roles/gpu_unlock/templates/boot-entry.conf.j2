@@ -1,0 +1,11 @@
+#jinja2: trim_blocks: True, lstrip_blocks: True
+# Managed by Ansible (gpu_unlock role), regenerated from {{ gpu_unlock_source_entry }}.conf on every run.
+{% for line in gpu_unlock_source_lines %}
+{% if line is match('\s*title\s') %}
+title   {{ gpu_unlock_entry_title }}
+{% elif line is match('\s*options\s') %}
+{{ line | trim }} gpu_unlock.targets={{ gpu_unlock_pci_address }}
+{% else %}
+{{ line }}
+{% endif %}
+{% endfor %}

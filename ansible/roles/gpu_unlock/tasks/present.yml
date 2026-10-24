@@ -1,0 +1,252 @@
+---
+- name: Install gpu-unlock build dependencies
+  community.general.pacman:
+    name:
+      - base-devel
+      - git
+      - python
+      - zstd
+      - dkms
+      - "{{ gpu_unlock_headers_package }}"
+    state: present
+
+- name: Check installed gpu-unlock packages
+  ansible.builtin.command: pacman -Q gpu-unlock-dkms gpu-unlock-firmware
+  register: gpu_unlock_installed
+  changed_when: false
+  failed_when: false
+
+- name: Read installed gpu-unlock commit
+  ansible.builtin.slurp:
+    src: "{{ gpu_unlock_marker }}"
+  register: gpu_unlock_marker_file
+  failed_when: false
+
+# The package version (1.0.0-1) doesn't identify the commit, so the marker
+# written after a successful install does. No marker means rebuild.
+- name: Decide whether to build gpu-unlock
+  ansible.builtin.set_fact:
+    gpu_unlock_needs_build: >-
+      {{ gpu_unlock_installed.rc != 0
+         or (gpu_unlock_marker_file.content | default('') | b64decode | trim) != gpu_unlock_commit }}
+
+- name: Build and install gpu-unlock at the pinned commit
+  when: gpu_unlock_needs_build | bool
+  block:
+    - name: Create gpu-unlock source and build directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ gpu_unlock_src_dir | dirname }}"
+        - "{{ gpu_unlock_build_dir }}/build"
+        - "{{ gpu_unlock_build_dir }}/pkg"
+        - "{{ gpu_unlock_build_dir }}/sources"
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: Clone gpu-unlock at the pinned commit
+      ansible.builtin.git:
+        repo: "{{ gpu_unlock_repo }}"
+        dest: "{{ gpu_unlock_src_dir }}"
+        version: "{{ gpu_unlock_commit }}"
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: Read checked-out gpu-unlock commit
+      ansible.builtin.command: git rev-parse HEAD
+      args:
+        chdir: "{{ gpu_unlock_src_dir }}"
+      register: gpu_unlock_head
+      changed_when: false
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: Read gpu-unlock working tree status  # noqa: command-instead-of-module
+      ansible.builtin.command: git status --porcelain
+      args:
+        chdir: "{{ gpu_unlock_src_dir }}"
+      register: gpu_unlock_tree
+      changed_when: false
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: Assert gpu-unlock checkout is the pinned commit and clean
+      ansible.builtin.assert:
+        that:
+          - gpu_unlock_head.stdout == gpu_unlock_commit
+          - gpu_unlock_tree.stdout | length == 0
+        fail_msg: >-
+          {{ gpu_unlock_src_dir }} is at {{ gpu_unlock_head.stdout }} (expected {{ gpu_unlock_commit }})
+          or has local changes: {{ gpu_unlock_tree.stdout_lines }}. The PKGBUILD builds committed HEAD,
+          so clean it up before re-running.
+
+    # Build, package and source dirs live outside the checkout so the tree stays
+    # clean, and outside the root-owned dirs makepkg.conf may point at.
+    - name: Build gpu-unlock packages
+      ansible.builtin.command: makepkg -f --noconfirm
+      args:
+        chdir: "{{ gpu_unlock_src_dir }}/packaging/arch"
+      environment:
+        BUILDDIR: "{{ gpu_unlock_build_dir }}/build"
+        PKGDEST: "{{ gpu_unlock_build_dir }}/pkg"
+        SRCDEST: "{{ gpu_unlock_build_dir }}/sources"
+      changed_when: true
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: List built gpu-unlock package files
+      ansible.builtin.command: makepkg --packagelist
+      args:
+        chdir: "{{ gpu_unlock_src_dir }}/packaging/arch"
+      environment:
+        BUILDDIR: "{{ gpu_unlock_build_dir }}/build"
+        PKGDEST: "{{ gpu_unlock_build_dir }}/pkg"
+        SRCDEST: "{{ gpu_unlock_build_dir }}/sources"
+      register: gpu_unlock_pkgfiles
+      changed_when: false
+      become: true
+      become_user: "{{ gpu_unlock_build_user }}"
+
+    - name: Assert both gpu-unlock packages were built
+      ansible.builtin.assert:
+        that:
+          - gpu_unlock_pkgfiles.stdout_lines | length == 2
+          - gpu_unlock_pkgfiles.stdout_lines | select('search', '/gpu-unlock-dkms-') | list | length == 1
+          - gpu_unlock_pkgfiles.stdout_lines | select('search', '/gpu-unlock-firmware-') | list | length == 1
+        fail_msg: "Unexpected makepkg package list: {{ gpu_unlock_pkgfiles.stdout_lines }}"
+
+    # pacman -U directly: the pacman module skips files whose version is already
+    # installed, and every build here is 1.0.0-1.
+    - name: Install built gpu-unlock packages
+      ansible.builtin.command:
+        argv: "{{ ['pacman', '-U', '--noconfirm'] + gpu_unlock_pkgfiles.stdout_lines }}"
+      changed_when: true
+      notify: Rebuild initramfs
+
+- name: Rebuild initramfs now
+  ansible.builtin.meta: flush_handlers
+
+- name: Find installed kernel version
+  ansible.builtin.command: pacman -Qlq {{ gpu_unlock_kernel_package }}
+  register: gpu_unlock_kernel_files
+  changed_when: false
+
+- name: Set installed kernel version
+  ansible.builtin.set_fact:
+    gpu_unlock_kernel_version: >-
+      {{ gpu_unlock_kernel_files.stdout_lines
+         | select('match', '^/usr/lib/modules/[^/]+/vmlinuz$')
+         | map('regex_replace', '^/usr/lib/modules/([^/]+)/vmlinuz$', '\1')
+         | first }}
+
+- name: Find gpu_unlock DKMS module
+  ansible.builtin.find:
+    paths: "/usr/lib/modules/{{ gpu_unlock_kernel_version }}/updates/dkms"
+    patterns: "gpu_unlock.ko*"
+  register: gpu_unlock_dkms_module
+
+- name: Assert gpu_unlock DKMS module is built
+  ansible.builtin.assert:
+    that: gpu_unlock_dkms_module.matched > 0
+    fail_msg: "No gpu_unlock module under /usr/lib/modules/{{ gpu_unlock_kernel_version }}/updates/dkms/, check `dkms status`"
+
+- name: List gpu-unlock firmware files
+  ansible.builtin.command: pacman -Qlq gpu-unlock-firmware
+  register: gpu_unlock_firmware_files
+  changed_when: false
+
+- name: List initramfs contents
+  ansible.builtin.command: lsinitcpio /boot/initramfs-{{ gpu_unlock_kernel_package }}.img
+  register: gpu_unlock_initramfs
+  changed_when: false
+
+- name: Assert initramfs contains gpu_unlock and its firmware
+  vars:
+    gpu_unlock_expected_firmware: >-
+      {{ gpu_unlock_firmware_files.stdout_lines
+         | select('match', '^/usr/lib/firmware/gpu-unlock/' ~ gpu_unlock_firmware_version ~ '/.*\.bin$')
+         | map('regex_replace', '^/', '')
+         | list }}
+  ansible.builtin.assert:
+    that:
+      - gpu_unlock_initramfs.stdout_lines
+        | select('match', '^usr/lib/modules/' ~ gpu_unlock_kernel_version ~ '/updates/dkms/gpu_unlock\.ko')
+        | list | length > 0
+      - gpu_unlock_expected_firmware | length > 0
+      - gpu_unlock_expected_firmware | difference(gpu_unlock_initramfs.stdout_lines) | length == 0
+    fail_msg: >-
+      /boot/initramfs-{{ gpu_unlock_kernel_package }}.img is missing gpu_unlock.ko or firmware
+      ({{ gpu_unlock_expected_firmware | difference(gpu_unlock_initramfs.stdout_lines) }}).
+      Check /etc/mkinitcpio.conf.d/zz-gpu-unlock.conf and the mkinitcpio -P output.
+
+- name: Create gpu-unlock marker directory
+  ansible.builtin.file:
+    path: "{{ gpu_unlock_marker | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: Record installed gpu-unlock commit
+  ansible.builtin.copy:
+    content: "{{ gpu_unlock_commit }}\n"
+    dest: "{{ gpu_unlock_marker }}"
+    mode: '0644'
+
+- name: Read source boot entry
+  ansible.builtin.slurp:
+    src: "/boot/loader/entries/{{ gpu_unlock_source_entry }}.conf"
+  register: gpu_unlock_source_file
+
+- name: Split source boot entry into lines
+  ansible.builtin.set_fact:
+    gpu_unlock_source_lines: "{{ (gpu_unlock_source_file.content | b64decode).splitlines() }}"
+
+- name: Assert source boot entry can be derived from
+  ansible.builtin.assert:
+    that:
+      - gpu_unlock_source_lines | select('match', '\s*title\s') | list | length == 1
+      - gpu_unlock_source_lines | select('match', '\s*linux\s') | list | length == 1
+      - gpu_unlock_source_lines | select('match', '\s*options\s') | list | length == 1
+      - gpu_unlock_source_lines | select('search', 'gpu_unlock\.') | list | length == 0
+    fail_msg: >-
+      {{ gpu_unlock_source_entry }}.conf needs exactly one title, linux and options line and no
+      gpu_unlock.* option to derive {{ gpu_unlock_entry_name }}.conf from it.
+
+# vfat ignores chmod, so leave the mode to the ESP's fmask
+- name: Create gpu-unlock boot entry  # noqa: risky-file-permissions
+  ansible.builtin.template:
+    src: boot-entry.conf.j2
+    dest: "/boot/loader/entries/{{ gpu_unlock_entry_name }}.conf"
+    owner: root
+    group: root
+
+# The EFI variable bootctl set-default writes. `bootctl list` isDefault can't be
+# used: it reflects the boot-time choice, including a one-shot.
+- name: Read persistent default boot entry
+  ansible.builtin.shell: |
+    set -o pipefail
+    var=/sys/firmware/efi/efivars/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+    [ -e "$var" ] || exit 0
+    tail -c +5 "$var" | iconv -f UTF-16LE -t UTF-8 | tr -d '\0'
+  args:
+    executable: /bin/bash
+  register: gpu_unlock_efi_default
+  changed_when: false
+  when: gpu_unlock_make_default | bool
+
+- name: Make gpu-unlock entry the default
+  ansible.builtin.command: bootctl set-default {{ gpu_unlock_entry_name }}.conf
+  changed_when: true
+  when:
+    - gpu_unlock_make_default | bool
+    - gpu_unlock_efi_default.stdout != gpu_unlock_entry_name ~ '.conf'
+
+- name: Show how to boot the gpu-unlock entry
+  ansible.builtin.debug:
+    msg:
+      - "gpu-unlock {{ gpu_unlock_commit[:12] }} is installed and /boot/loader/entries/{{ gpu_unlock_entry_name }}.conf is ready."
+      - "Nothing was rebooted. To try it once (a cold boot is required):"
+      - "  sudo bootctl set-oneshot {{ gpu_unlock_entry_name }}.conf && systemctl poweroff"
+      - "  wait about 15 s, then power on"
+      - "  journalctl -k -b | grep -E 'gpu_unlock|unlock_610'   # should show 'gpu_unlock: unlocked'"

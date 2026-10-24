@@ -1,0 +1,61 @@
+---
+# The EFI variable bootctl set-default writes. `bootctl list` isDefault can't be
+# used: it reflects the boot-time choice, including a one-shot.
+- name: Read persistent default boot entry
+  ansible.builtin.shell: |
+    set -o pipefail
+    var=/sys/firmware/efi/efivars/LoaderEntryDefault-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+    [ -e "$var" ] || exit 0
+    tail -c +5 "$var" | iconv -f UTF-16LE -t UTF-8 | tr -d '\0'
+  args:
+    executable: /bin/bash
+  register: gpu_unlock_efi_default
+  changed_when: false
+
+# Only set if the unlock entry was made the default. Without this the default
+# would point at a deleted entry and systemd-boot would pick the first one.
+- name: Reset default boot entry to the source entry
+  ansible.builtin.command: bootctl set-default {{ gpu_unlock_source_entry }}.conf
+  changed_when: true
+  when: gpu_unlock_efi_default.stdout == gpu_unlock_entry_name ~ '.conf'
+
+- name: Remove gpu-unlock boot entry
+  ansible.builtin.file:
+    path: "/boot/loader/entries/{{ gpu_unlock_entry_name }}.conf"
+    state: absent
+
+- name: Remove gpu-unlock packages
+  community.general.pacman:
+    name:
+      - gpu-unlock-dkms
+      - gpu-unlock-firmware
+    state: absent
+  notify: Rebuild initramfs
+
+- name: Remove gpu-unlock marker
+  ansible.builtin.file:
+    path: "{{ gpu_unlock_marker }}"
+    state: absent
+
+- name: Rebuild initramfs now
+  ansible.builtin.meta: flush_handlers
+
+- name: List initramfs contents
+  ansible.builtin.command: lsinitcpio /boot/initramfs-{{ gpu_unlock_kernel_package }}.img
+  register: gpu_unlock_initramfs
+  changed_when: false
+
+- name: Assert initramfs no longer contains gpu_unlock
+  ansible.builtin.assert:
+    that:
+      - gpu_unlock_initramfs.stdout_lines | select('search', '/gpu_unlock\.ko') | list | length == 0
+      - gpu_unlock_initramfs.stdout_lines | select('search', '^usr/lib/firmware/gpu-unlock/') | list | length == 0
+    fail_msg: >-
+      /boot/initramfs-{{ gpu_unlock_kernel_package }}.img still contains gpu-unlock files.
+      Run `sudo mkinitcpio -P` and re-run with -e gpu_unlock_state=absent.
+
+- name: Show gpu-unlock removal result
+  ansible.builtin.debug:
+    msg:
+      - "gpu-unlock packages, boot entry and initramfs files are removed."
+      - "The source checkout at {{ gpu_unlock_src_dir }} and build cache at {{ gpu_unlock_build_dir }} were kept."

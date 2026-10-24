@@ -1,0 +1,25 @@
+---
+# present installs gpu-unlock and its boot entry, absent removes both
+gpu_unlock_state: present
+
+gpu_unlock_repo: https://github.com/Zagitta/gpu-unlock
+# The only audited commit. Do not bump without reviewing the new source.
+gpu_unlock_commit: 4189b17711bd487d9ea4a8ff0055e6d58d19d6d3
+# NVIDIA release the pinned commit generates firmware from
+gpu_unlock_firmware_version: "610.43.03"
+
+gpu_unlock_pci_address: "0000:01:00.0"
+gpu_unlock_pci_device_id: "10de:2484"
+
+gpu_unlock_entry_name: linux-unlock
+gpu_unlock_entry_title: "Arch Linux (linux, gpu-unlock)"
+gpu_unlock_source_entry: linux
+gpu_unlock_make_default: false
+
+gpu_unlock_kernel_package: linux
+gpu_unlock_headers_package: linux-headers
+
+gpu_unlock_build_user: "{{ target_user }}"
+gpu_unlock_src_dir: "/home/{{ gpu_unlock_build_user }}/.local/src/gpu-unlock"
+gpu_unlock_build_dir: "/home/{{ gpu_unlock_build_user }}/.cache/gpu-unlock"
+gpu_unlock_marker: /var/lib/gpu-unlock/installed-commit

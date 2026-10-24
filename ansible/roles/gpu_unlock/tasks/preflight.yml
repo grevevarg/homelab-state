@@ -1,0 +1,66 @@
+---
+- name: Assert target is Arch Linux
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] == 'Archlinux'
+    fail_msg: "gpu-unlock is only set up for Arch Linux, {{ inventory_hostname }} is {{ ansible_facts['os_family'] }}"
+
+- name: Assert PCI address is a single device
+  ansible.builtin.assert:
+    that: gpu_unlock_pci_address is match('^[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]$')
+    fail_msg: "gpu_unlock_pci_address must be one full PCI address like 0000:01:00.0, got '{{ gpu_unlock_pci_address }}'"
+
+- name: Check systemd-boot is installed
+  ansible.builtin.command: bootctl is-installed
+  register: gpu_unlock_bootctl
+  changed_when: false
+  failed_when: false
+
+- name: Assert systemd-boot is installed
+  ansible.builtin.assert:
+    that: gpu_unlock_bootctl.rc == 0
+    fail_msg: >-
+      bootctl is-installed failed ({{ gpu_unlock_bootctl.stdout | default('') }}{{ gpu_unlock_bootctl.stderr | default('') }}).
+      This role only handles systemd-boot.
+
+- name: Check source boot entry exists
+  ansible.builtin.stat:
+    path: "/boot/loader/entries/{{ gpu_unlock_source_entry }}.conf"
+  register: gpu_unlock_source_stat
+
+- name: Assert source boot entry exists
+  ansible.builtin.assert:
+    that: gpu_unlock_source_stat.stat.exists
+    fail_msg: "/boot/loader/entries/{{ gpu_unlock_source_entry }}.conf does not exist, set gpu_unlock_source_entry to an existing entry"
+
+- name: Look up GPU at the target PCI address
+  ansible.builtin.command: lspci -Dnn -s {{ gpu_unlock_pci_address }}
+  register: gpu_unlock_lspci
+  changed_when: false
+  failed_when: false
+
+- name: Assert expected NVIDIA GPU is at the target PCI address
+  ansible.builtin.assert:
+    that:
+      - gpu_unlock_lspci.rc == 0
+      - "'NVIDIA' in gpu_unlock_lspci.stdout"
+      - "('[' ~ gpu_unlock_pci_device_id ~ ']') in gpu_unlock_lspci.stdout"
+    fail_msg: >-
+      Expected an NVIDIA [{{ gpu_unlock_pci_device_id }}] at {{ gpu_unlock_pci_address }}, lspci shows:
+      '{{ gpu_unlock_lspci.stdout | default('') }}{{ gpu_unlock_lspci.stderr | default('') }}'.
+      Wrong machine or wrong address, refusing to continue.
+
+- name: Check mkinitcpio preset for custom config
+  when: gpu_unlock_state == 'present'
+  block:
+    - name: Read mkinitcpio preset
+      ansible.builtin.slurp:
+        src: "/etc/mkinitcpio.d/{{ gpu_unlock_kernel_package }}.preset"
+      register: gpu_unlock_preset
+
+    - name: Assert preset does not override mkinitcpio config
+      ansible.builtin.assert:
+        that: not (gpu_unlock_preset.content | b64decode is search('^\s*[A-Za-z0-9_]+_config=', multiline=True))
+        fail_msg: >-
+          /etc/mkinitcpio.d/{{ gpu_unlock_kernel_package }}.preset has an uncommented *_config= line, so mkinitcpio
+          would ignore /etc/mkinitcpio.conf.d/zz-gpu-unlock.conf and gpu_unlock would not be in the initramfs.
+          Comment it out (or move its settings into /etc/mkinitcpio.conf) and re-run. This role will not edit the preset.

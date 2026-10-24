@@ -1,0 +1,12 @@
+---
+# Opt-in only. Nothing else imports this playbook or the gpu_unlock role;
+# running it on purpose is what installs gpu-unlock.
+#
+#   Install:   ansible-playbook playbooks/gpu-unlock.yml
+#   Roll back: ansible-playbook playbooks/gpu-unlock.yml -e gpu_unlock_state=absent
+- name: Install gpu-unlock on Hinata
+  hosts: hinata
+  become: true
+
+  roles:
+    - gpu_unlock
