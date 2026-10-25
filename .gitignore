@@ -41,3 +41,5 @@ references/*
 
 # ansible vault
 *vault.yml
+# Claude Code personal settings
+.claude/settings.local.json
