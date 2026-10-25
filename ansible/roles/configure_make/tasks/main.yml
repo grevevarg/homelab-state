@@ -6,12 +6,13 @@
     owner: root
     group: root
     mode: '0755'
+  when: configure_make_custom_dirs
 
 - name: Configure makepkg parallel jobs
   ansible.builtin.lineinfile:
     path: /etc/makepkg.conf
     regexp: '^#?MAKEFLAGS='
-    line: 'MAKEFLAGS="-j{{ (ansible_processor_vcpus - 1) if ansible_processor_vcpus > 1 else 1 }}"'
+    line: 'MAKEFLAGS="-j{{ configure_make_jobs }}"'
     backup: true
   become: true
   when:
@@ -29,10 +30,10 @@
     - { regexp: '^#?PKGDEST=', line: 'PKGDEST=/var/cache/pacman/built-packages' }
   when:
     - inventory_hostname in ['hinata', 'maika']
+    - configure_make_custom_dirs
 
 - name: Configure and mount tmpfs for builds
-  when:
-    - inventory_hostname in ['hinata']
+  when: configure_make_tmpfs
   block:
     - name: Mount tmpfs for builds
       ansible.posix.mount:

@@ -32,8 +32,9 @@
       Server = https://github.com/LizardByte/pacman-repo/releases/download/beta
     marker: "# {mark} LizardByte Beta Repository"
   become: true
+  # hinata gets sunshine-git from the AUR and manages pacman.conf in hinata_pacman
   when:
-    - inventory_hostname in ['hinata', 'maika']
+    - inventory_hostname in ['maika']
 
 - name: Read and parse package lists
   block:

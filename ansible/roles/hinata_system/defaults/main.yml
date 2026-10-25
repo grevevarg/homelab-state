@@ -1,0 +1,89 @@
+---
+# Snapshotted config files: files/etc/<src> is installed as /etc/<src>
+hinata_system_files:
+  - src: cron.allow
+  - src: hostname
+  - src: hosts
+  - src: locale.conf
+  - src: vconsole.conf
+  - src: docker/daemon.json
+  - src: dunst/dunstrc
+  - src: modules-load.d/virtualbox.conf
+  - src: pam.d/dankshell
+  - src: plymouth/plymouthd.conf
+  - src: systemd/zram-generator.conf
+  - src: systemd/network/20-ethernet.network
+  - src: systemd/network/20-wlan.network
+  - src: systemd/network/20-wwan.network
+  - src: systemd/system/journal-rotate-on-boot.service
+  - src: X11/xorg.conf.d/00-keyboard.conf
+
+hinata_system_mkinitcpio_modules: "MODULES=( nvidia nvidia_modeset nvidia_uvm nvidia_drm )"
+hinata_system_mkinitcpio_hooks: >-
+  HOOKS=(base plymouth udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck)
+
+hinata_system_journald:
+  Storage: persistent
+  SystemMaxUse: 500M
+  SystemMaxFileSize: 100M
+  RuntimeMaxUse: 100M
+  MaxFileSec: 14day
+
+hinata_system_mdadm_arrays:
+  - ARRAY /dev/md/raid0 metadata=1.2 UUID=7e7f703f:83862260:fce2eda7:40a7d57b
+
+# Set on the options line of the main boot entry, replacing any other value
+# for the same key
+hinata_system_boot_entry: linux
+hinata_system_kernel_params:
+  - zswap.enabled=1
+  - zswap.compressor=zstd
+  - zswap.max_pool_percent=20
+  - zswap.zpool=zsmalloc
+  - quiet
+  - splash
+
+# Entries whose options line is kept identical to the main entry's.
+# Created from the main entry if missing (the name is also the kernel's).
+hinata_system_boot_mirror_entries:
+  - linux-zen
+
+# linux-bazzite isn't installed any more
+hinata_system_boot_stale_entries:
+  - /boot/loader/entries/linux-bazzite.conf
+  - /boot/loader/entries/linux-bazzite-fallback.conf
+  - /boot/2025-06-28_12-39-00_linux-bazzite.conf
+
+hinata_system_mounts:
+  - path: /mnt/raid
+    src: UUID=45f2488d-5ac9-4bd8-a2e0-4139ab284b2d
+    fstype: btrfs
+    opts: rw,relatime,ssd,discard=async,space_cache=v2,subvol=/
+  - path: /mnt/spinnydisk
+    src: UUID=987A2F097A2EE3AA
+    fstype: ntfs3
+    opts: rw,relatime,uid=1000,gid=1000,iocharset=utf8
+  - path: none
+    src: /mnt/raid/swap/swapfile
+    fstype: swap
+    opts: defaults
+
+# Enabled, not started: starting greetd or docker mid-provision would get in the way.
+# piavpn.service comes from the PIA installer, see references/hinata-playbook-review.md.
+hinata_system_services:
+  - avahi-daemon.service
+  - bluetooth.service
+  - cronie.service
+  - docker.service
+  - greetd.service
+  - journal-rotate-on-boot.service
+  - linux-modules-cleanup.service
+  - sshd.service
+  - systemd-network-generator.service
+  - systemd-networkd.service
+  - systemd-networkd-wait-online.service
+  - systemd-resolved.service
+  - systemd-timesyncd.service
+  - fstrim.timer
+  - logrotate.timer
+  - paccache.timer

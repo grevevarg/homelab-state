@@ -1,0 +1,33 @@
+---
+# Restores Hinata to its snapshotted state on a fresh archinstall, and is safe
+# to re-run on the live machine. See references/hinata-playbook-review.md for
+# what it doesn't cover (PIA, SSH keys, ComfyUI, docker data, gpu-unlock).
+- name: Provision Hinata
+  hosts: hinata
+  become: true
+
+  pre_tasks:
+    - name: Set up pacman repositories
+      ansible.builtin.include_role:
+        name: hinata_pacman
+    - name: Configure makepkg
+      ansible.builtin.include_role:
+        name: configure_make
+    - name: Install yay
+      ansible.builtin.include_role:
+        name: yay
+    - name: Clone dotfiles and package lists
+      ansible.builtin.include_role:
+        name: repos
+
+  roles:
+    - packages
+    - hinata_system
+    - hinata_user
+    - samba
+    - services
+
+  post_tasks:
+    - name: Clean up
+      ansible.builtin.include_role:
+        name: cleanup

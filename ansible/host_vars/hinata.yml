@@ -1,2 +1,7 @@
 target_user: ntsu
 gpu_power_limit_watts: 190
+
+# Matches the live makepkg.conf: no build tmpfs, BUILDDIR or PKGDEST
+configure_make_jobs: 10
+configure_make_custom_dirs: false
+configure_make_tmpfs: false

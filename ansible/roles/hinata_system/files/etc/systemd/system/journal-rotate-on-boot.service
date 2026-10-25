@@ -1,0 +1,10 @@
+[Unit]
+Description=Rotate systemd journal on boot
+After=systemd-journald.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/journalctl --rotate
+
+[Install]
+WantedBy=multi-user.target

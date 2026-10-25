@@ -1,8 +1,9 @@
+# mount.cifs reads values literally, so quotes would become part of them
 - name: Create .smbcred file from vault credentials
   ansible.builtin.copy:
     content: |
-      username="{{ smbcred_username }}"
-      password="{{ smbcred_password }}"
+      username={{ smbcred_username }}
+      password={{ smbcred_password }}
     dest: "/home/{{ target_user }}/.smbcred"
     mode: '0600'
   become: true

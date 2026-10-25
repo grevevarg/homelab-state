@@ -1,0 +1,5 @@
+---
+- name: Sync and upgrade to the configured repos
+  community.general.pacman:
+    update_cache: true
+    upgrade: true

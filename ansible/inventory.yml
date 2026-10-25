@@ -4,7 +4,7 @@ all:
     desktops:
       hosts:
         hinata:
-          ansible_host: 192.168.1.153
+          ansible_host: 192.168.0.153
           ansible_user: ntsu
           ansible_port: 22
           ansible_ssh_private_key_file: ~/.ssh/id_ed25519
@@ -17,7 +17,7 @@ all:
     servers:
       hosts:
         macrossnas:
-          ansible_host: 192.168.1.199
+          ansible_host: 192.168.0.199
           ansible_user: ntsu
           ansible_port: 22
           ansible_ssh_private_key_file: ~/.ssh/id_ed25519

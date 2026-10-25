@@ -1,0 +1,28 @@
+---
+hinata_user_groups:
+  - games
+  - wheel
+  - kvm
+  - video
+  - greeter
+  - i2c
+  - docker
+  - libvirt
+  - vboxusers
+  - wireshark
+  - ubridge
+
+# false: dotfiles never overwrite files that already exist, so re-running on
+# the live machine can't revert changes made since the last 04:00 sync.
+# true: the repo wins, for restoring over a half-configured home.
+hinata_user_dotfiles_overwrite: false
+
+# User units the live machine enables through ~/.config/systemd/user/*.wants.
+# The dotfiles sync skips symlinks, so they are recreated here.
+hinata_user_unit_links:
+  - { target: default.target, unit: dsearch.service }
+  - { target: default.target, unit: pipewire-pulse.service }
+  - { target: default.target, unit: pipewire-pulse.socket }
+  - { target: graphical-session.target, unit: dms.service }
+  - { target: hyprland-session.target, unit: dms.service }
+  - { target: sockets.target, unit: ssh-agent.socket }

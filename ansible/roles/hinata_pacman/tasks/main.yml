@@ -1,0 +1,86 @@
+---
+# pacman.conf uses the cachyos-*-znver4 repos. Their packages are built for
+# x86-64-v4 and would crash on a CPU without it, so check before switching.
+- name: Check CPU supports x86-64-v4
+  ansible.builtin.command: /lib/ld-linux-x86-64.so.2 --help
+  register: hinata_pacman_ld_help
+  changed_when: false
+  check_mode: false
+
+- name: Assert CPU supports x86-64-v4
+  ansible.builtin.assert:
+    that: hinata_pacman_ld_help.stdout is search('x86-64-v4 \(supported, searched\)')
+    fail_msg: >-
+      This CPU does not support x86-64-v4, so the cachyos-*-znver4 repos in pacman.conf would
+      install packages it cannot run. Update roles/hinata_pacman/files/pacman.conf for this hardware.
+
+- name: Check pacman signing keys
+  ansible.builtin.command: pacman-key --list-keys {{ item.fingerprint }}
+  loop: "{{ hinata_pacman_keys }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: hinata_pacman_key_check
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Import pacman signing keys
+  ansible.builtin.command: pacman-key --keyserver {{ hinata_pacman_keyserver }} --recv-keys {{ item.item.fingerprint }}
+  loop: "{{ hinata_pacman_key_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Locally sign pacman signing keys
+  ansible.builtin.command: pacman-key --lsign-key {{ item.item.fingerprint }}
+  loop: "{{ hinata_pacman_key_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Check CachyOS keyring and mirrorlists
+  ansible.builtin.command:
+    argv: "{{ ['pacman', '-Q'] + hinata_pacman_cachyos_bootstrap_packages }}"
+  register: hinata_pacman_cachyos_check
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Install CachyOS keyring and mirrorlists
+  when: hinata_pacman_cachyos_check.rc != 0
+  block:
+    - name: Write bootstrap pacman config
+      ansible.builtin.template:
+        src: pacman-bootstrap.conf.j2
+        dest: /tmp/pacman-bootstrap.conf
+        mode: '0644'
+
+    - name: Install CachyOS packages with bootstrap config
+      ansible.builtin.command:
+        argv: "{{ ['pacman', '--config', '/tmp/pacman-bootstrap.conf', '-Sy', '--noconfirm', '--needed']
+                  + hinata_pacman_cachyos_bootstrap_packages }}"
+      changed_when: true
+
+  always:
+    - name: Remove bootstrap pacman config
+      ansible.builtin.file:
+        path: /tmp/pacman-bootstrap.conf
+        state: absent
+
+- name: Deploy pacman.conf
+  ansible.builtin.copy:
+    src: pacman.conf
+    dest: /etc/pacman.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  notify: Sync and upgrade to the configured repos
+
+# Only when pacman.conf changed (a fresh install): moving to the CachyOS repos
+# replaces most packages with their builds. On the live machine this is a no-op.
+# Flushed here because yay and the package roles need the new repos.
+- name: Upgrade to the configured repos now
+  ansible.builtin.meta: flush_handlers

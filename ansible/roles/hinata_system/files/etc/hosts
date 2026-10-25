@@ -1,0 +1,25 @@
+# Static table lookup for hostnames.
+# See hosts(5) for details.
+
+192.168.0.199 adguardhome.ntsu.lan
+192.168.0.199 excalidraw.ntsu.lan
+192.168.0.199 feishin.ntsu.lan
+192.168.0.199 forgejo.ntsu.lan
+192.168.0.199 homepage.ntsu.lan
+192.168.0.199 immich.ntsu.lan
+192.168.0.199 invidious.ntsu.lan
+192.168.0.199 jellyfin.ntsu.lan
+192.168.0.199 komga.ntsu.lan
+192.168.0.199 navidrome.ntsu.lan
+192.168.0.199 netdata.ntsu.lan
+192.168.0.199 overleaf.ntsu.lan
+192.168.0.199 pixivfe.ntsu.lan
+192.168.0.199 portainer.ntsu.lan
+192.168.0.199 redlib.ntsu.lan
+192.168.0.199 searxng.ntsu.lan
+192.168.0.199 shoko.ntsu.lan
+192.168.0.199 stirling.ntsu.lan
+192.168.0.199 uptime.ntsu.lan
+
+127.0.0.1       localhost
+::1             localhost

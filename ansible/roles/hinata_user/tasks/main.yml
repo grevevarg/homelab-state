@@ -1,0 +1,82 @@
+---
+- name: Create user group
+  ansible.builtin.group:
+    name: "{{ target_user }}"
+    state: present
+
+- name: Create supplementary groups
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: present
+    system: true
+  loop: "{{ hinata_user_groups }}"
+
+- name: Create user
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    group: "{{ target_user }}"
+    groups: "{{ hinata_user_groups }}"
+    append: true
+    shell: /usr/bin/zsh
+    state: present
+
+- name: Copy dotfiles
+  ansible.builtin.command:
+    argv: "{{ ['rsync', '-a', '--itemize-changes']
+              + ([] if hinata_user_dotfiles_overwrite else ['--ignore-existing'])
+              + [item.src, item.dest] }}"
+  loop:
+    - { src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/.config/", dest: "/home/{{ target_user }}/.config/" }
+    - { src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/.zshrc", dest: "/home/{{ target_user }}/.zshrc" }
+    # syncdotfiles.sh pushes ~/scripts to the repo root, not the host folder
+    - { src: "{{ dotfiles_clone_path }}/scripts/", dest: "/home/{{ target_user }}/scripts/" }
+  loop_control:
+    label: "{{ item.dest }}"
+  register: hinata_user_rsync
+  changed_when: hinata_user_rsync.stdout | length > 0
+  become: true
+  become_user: "{{ target_user }}"
+
+- name: Create user unit wants directories
+  ansible.builtin.file:
+    path: "/home/{{ target_user }}/.config/systemd/user/{{ item }}.wants"
+    state: directory
+    mode: '0755'
+  loop: "{{ hinata_user_unit_links | map(attribute='target') | unique | list }}"
+  become: true
+  become_user: "{{ target_user }}"
+
+- name: Enable user units
+  ansible.builtin.file:
+    src: "/usr/lib/systemd/user/{{ item.unit }}"
+    dest: "/home/{{ target_user }}/.config/systemd/user/{{ item.target }}.wants/{{ item.unit }}"
+    state: link
+  loop: "{{ hinata_user_unit_links }}"
+  loop_control:
+    label: "{{ item.target }} -> {{ item.unit }}"
+  become: true
+  become_user: "{{ target_user }}"
+
+- name: Create cron log directory
+  ansible.builtin.file:
+    path: "/var/log/{{ target_user }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+
+# The whole crontab is snapshotted rather than managed per job with the cron
+# role, which can't keep the hand-written "why" comments next to each job.
+- name: Read current crontab
+  ansible.builtin.command: crontab -l -u {{ target_user }}
+  register: hinata_user_crontab
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Install snapshotted crontab
+  ansible.builtin.command:
+    cmd: crontab -u {{ target_user }} -
+    stdin: "{{ lookup('ansible.builtin.file', 'crontab') }}"
+  when: hinata_user_crontab.stdout != lookup('ansible.builtin.file', 'crontab')
+  changed_when: true

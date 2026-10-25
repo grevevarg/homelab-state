@@ -1,0 +1,198 @@
+---
+- name: Create config directories
+  ansible.builtin.file:
+    path: "/etc/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ hinata_system_files | map(attribute='src') | map('dirname') | select | unique | list }}"
+
+- name: Install snapshotted config files
+  ansible.builtin.copy:
+    src: "etc/{{ item.src }}"
+    dest: "/etc/{{ item.src }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ hinata_system_files }}"
+  loop_control:
+    label: "/etc/{{ item.src }}"
+  notify: Reload systemd
+
+- name: Install jorb plymouth theme
+  ansible.builtin.copy:
+    src: plymouth-themes/jorb/
+    dest: /usr/share/plymouth/themes/jorb/
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  notify: Rebuild initramfs
+
+- name: Install greetd config from dotfiles
+  ansible.builtin.copy:
+    remote_src: true
+    src: "{{ dotfiles_clone_path }}/{{ inventory_hostname }}/greetd/"
+    dest: /etc/greetd/
+    owner: root
+    group: root
+    mode: preserve
+    directory_mode: '0755'
+
+- name: Enable en_US.UTF-8 locale
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: '^#?\s*en_US\.UTF-8 UTF-8'
+    line: en_US.UTF-8 UTF-8
+  notify: Generate locales
+
+- name: Configure mkinitcpio modules and hooks
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^MODULES=', line: "{{ hinata_system_mkinitcpio_modules }}" }
+    - { regexp: '^HOOKS=', line: "{{ hinata_system_mkinitcpio_hooks }}" }
+  notify: Rebuild initramfs
+
+# A drop-in instead of editing journald.conf, which has two [Journal] sections on hinata
+- name: Create journald drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure journald
+  ansible.builtin.copy:
+    content: |
+      [Journal]
+      {% for key, value in hinata_system_journald.items() %}
+      {{ key }}={{ value }}
+      {% endfor %}
+    dest: /etc/systemd/journald.conf.d/50-hinata.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart journald
+
+- name: Configure mdadm arrays
+  ansible.builtin.lineinfile:
+    path: /etc/mdadm.conf
+    line: "{{ item }}"
+  loop: "{{ hinata_system_mdadm_arrays }}"
+
+- name: Read main boot entry
+  ansible.builtin.slurp:
+    src: "/boot/loader/entries/{{ hinata_system_boot_entry }}.conf"
+  register: hinata_system_boot_entry_file
+
+# Sets each managed parameter, replacing an existing value for the same key
+# (zswap.enabled=0 becomes zswap.enabled=1) and appending the rest, so the
+# options line keeps its order and a re-run changes nothing.
+- name: Work out main boot entry options
+  vars:
+    hinata_system_current_options: >-
+      {{ (hinata_system_boot_entry_file.content | b64decode).splitlines()
+         | select('match', '\s*options\s') | first | default('options') }}
+  ansible.builtin.set_fact:
+    hinata_system_boot_options: >-
+      {%- set ns = namespace(opts=hinata_system_current_options.split()[1:]) -%}
+      {%- for param in hinata_system_kernel_params -%}
+      {%- set key = param.split('=') | first | regex_escape -%}
+      {%- if ns.opts | select('match', key ~ '(=|$)') | list -%}
+      {%- set ns.opts = ns.opts | map('regex_replace', '^' ~ key ~ '(=.*)?$', param) | list -%}
+      {%- else -%}
+      {%- set ns.opts = ns.opts + [param] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ (['options'] + ns.opts) | join(' ') }}
+
+- name: Set kernel parameters on main boot entry
+  ansible.builtin.lineinfile:
+    path: "/boot/loader/entries/{{ hinata_system_boot_entry }}.conf"
+    regexp: '^\s*options\s'
+    line: "{{ hinata_system_boot_options }}"
+
+- name: Check mirrored boot entries
+  ansible.builtin.stat:
+    path: "/boot/loader/entries/{{ item }}.conf"
+  loop: "{{ hinata_system_boot_mirror_entries }}"
+  register: hinata_system_mirror_stat
+
+- name: Copy main boot entry options to mirrored entries
+  ansible.builtin.lineinfile:
+    path: "/boot/loader/entries/{{ item.item }}.conf"
+    regexp: '^\s*options\s'
+    line: "{{ hinata_system_boot_options }}"
+  loop: "{{ hinata_system_mirror_stat.results | selectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# archinstall only writes entries for the kernels picked during install, and
+# installing a kernel package later doesn't add one for systemd-boot.
+- name: Create missing mirrored boot entries
+  ansible.builtin.template:
+    src: boot-entry-mirror.conf.j2
+    dest: "/boot/loader/entries/{{ item.item }}.conf"
+    mode: '0755'
+  loop: "{{ hinata_system_mirror_stat.results | rejectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Remove stale boot entries
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ hinata_system_boot_stale_entries }}"
+
+- name: Add fstab entries
+  ansible.posix.mount:
+    path: "{{ item.path }}"
+    src: "{{ item.src }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.opts }}"
+    state: present
+  loop: "{{ hinata_system_mounts }}"
+  loop_control:
+    label: "{{ item.path }} ({{ item.src }})"
+
+# A fresh archinstall may have enabled NetworkManager, which would fight
+# systemd-networkd. Disabled, not stopped: it may be what's carrying this
+# connection, so networkd takes over at the next boot.
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Disable NetworkManager
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+  loop:
+    - NetworkManager.service
+    - NetworkManager-wait-online.service
+    - NetworkManager-dispatcher.service
+  when: item in ansible_facts.services
+
+- name: Enable system services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    daemon_reload: true
+  loop: "{{ hinata_system_services }}"
+
+# Resolved has to be running before resolv.conf points at it, or DNS breaks
+# for the rest of the play.
+- name: Start systemd-resolved
+  ansible.builtin.systemd_service:
+    name: systemd-resolved.service
+    state: started
+
+- name: Point resolv.conf at systemd-resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true

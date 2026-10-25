@@ -1,0 +1,14 @@
+# Temporary config used only to install the CachyOS keyring and mirrorlists.
+[options]
+Architecture = auto
+SigLevel = Required DatabaseOptional
+LocalFileSigLevel = Optional
+
+[cachyos]
+Server = {{ hinata_pacman_cachyos_server }}
+
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist

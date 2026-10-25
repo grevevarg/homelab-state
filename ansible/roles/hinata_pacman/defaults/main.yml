@@ -1,0 +1,18 @@
+---
+# Signing keys for the extra repos in files/pacman.conf, as fingerprints
+# from the live keyring (pacman-key --list-keys).
+hinata_pacman_keys:
+  - name: CachyOS
+    fingerprint: 882DCFE48E2051D48E2562ABF3B607488DB35A47
+  - name: MEGA (DEB_Arch_Extra)
+    fingerprint: B01C811880480C854C73EC7E1A664B787094A482
+hinata_pacman_keyserver: hkps://keyserver.ubuntu.com
+
+# Packages that provide the mirrorlists pacman.conf includes. They come from
+# the cachyos repo itself, so they are installed with a bootstrap config first.
+hinata_pacman_cachyos_bootstrap_packages:
+  - cachyos-keyring
+  - cachyos-mirrorlist
+  - cachyos-v3-mirrorlist
+  - cachyos-v4-mirrorlist
+hinata_pacman_cachyos_server: https://mirror.cachyos.org/repo/$arch/$repo

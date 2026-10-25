@@ -1,0 +1,9 @@
+[Plymouth Theme]
+Name=jorb
+Description=spinny anime girl
+Comment=created By 4XLSTARKNIGHT
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/jorb
+ScriptFile=/usr/share/plymouth/themes/jorb/jorb.script

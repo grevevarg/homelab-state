@@ -1,0 +1,6 @@
+# Created by: ansible (hinata_system), options mirror {{ hinata_system_boot_entry }}.conf
+title   Arch Linux ({{ item.item }})
+linux   /vmlinuz-{{ item.item }}
+initrd  /amd-ucode.img
+initrd  /initramfs-{{ item.item }}.img
+{{ hinata_system_boot_options }}

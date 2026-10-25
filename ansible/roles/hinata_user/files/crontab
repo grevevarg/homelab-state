@@ -1,0 +1,17 @@
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# 4am every day, push dotfiles to repo
+# because i want an off-machine "cloud" backup
+0 4 * * * /home/ntsu/scripts/syncdotfiles.sh >> /var/log/ntsu/syncdotfiles.log 2>&1
+
+# 4am every day, backup wallpapers
+# because i want an off-machine local backup
+0 4 * * * rsync -rltvO --chmod=ug=rwX,o=rX /home/ntsu/wallpapers/ nas:/srv/raid/share/pics_backup/ >> /var/log/ntsu/wpbackup.log 2>&1
+
+# 4am every day, push list of installed packages to repo
+# because i want an off-machine "cloud" backup
+0 4 * * * /home/ntsu/scripts/packagesync.sh >> /var/log/ntsu/packagesync.log 2>&1
+
+# every 5 minutes, overwrite contents of backup with current data from /etc/hosts
+# i have genuinely forgotten why i did this and now im scared to change it
+*/5 * * * * cat /etc/hosts > /home/ntsu/hosts.bak

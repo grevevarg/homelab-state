@@ -1,0 +1,5 @@
+configure_make_jobs: "{{ (ansible_processor_vcpus - 1) if ansible_processor_vcpus > 1 else 1 }}"
+# BUILDDIR=/tmp/makepkg and PKGDEST=/var/cache/pacman/built-packages
+configure_make_custom_dirs: true
+# Mounts a dedicated tmpfs at /tmp/makepkg
+configure_make_tmpfs: false
