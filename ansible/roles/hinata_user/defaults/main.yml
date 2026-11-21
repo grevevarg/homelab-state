@@ -17,9 +17,18 @@ hinata_user_groups:
 # true: the repo wins, for restoring over a half-configured home.
 hinata_user_dotfiles_overwrite: false
 
+# User units that live in ~/.config/systemd/user itself rather than coming from
+# a package. systemd/ isn't in the dotfiles allowlist, so they ship from files/.
+#   megacmd.service: MEGAcmd server, keeps ~/Passwords two-way synced with MEGA
+#   /pswd. The sync itself needs a login, see references/hinata-playbook-review.md.
+hinata_user_units:
+  - megacmd.service
+
 # User units the live machine enables through ~/.config/systemd/user/*.wants.
 # The dotfiles sync skips symlinks, so they are recreated here.
+# `src` defaults to /usr/lib/systemd/user/<unit>; set it for units from hinata_user_units.
 hinata_user_unit_links:
+  - { target: default.target, unit: megacmd.service, src: "/home/{{ target_user }}/.config/systemd/user/megacmd.service" }
   - { target: default.target, unit: dsearch.service }
   - { target: default.target, unit: pipewire-pulse.service }
   - { target: default.target, unit: pipewire-pulse.socket }

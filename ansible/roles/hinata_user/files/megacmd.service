@@ -1,0 +1,11 @@
+[Unit]
+Description=MEGAcmd server (keeps ~/Passwords <-> MEGA /pswd in sync)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/mega-cmd-server --do-not-log-to-stdout
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -46,9 +46,18 @@
   become: true
   become_user: "{{ target_user }}"
 
+- name: Install user units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/home/{{ target_user }}/.config/systemd/user/{{ item }}"
+    mode: '0644'
+  loop: "{{ hinata_user_units }}"
+  become: true
+  become_user: "{{ target_user }}"
+
 - name: Enable user units
   ansible.builtin.file:
-    src: "/usr/lib/systemd/user/{{ item.unit }}"
+    src: "{{ item.src | default('/usr/lib/systemd/user/' ~ item.unit) }}"
     dest: "/home/{{ target_user }}/.config/systemd/user/{{ item.target }}.wants/{{ item.unit }}"
     state: link
   loop: "{{ hinata_user_unit_links }}"
